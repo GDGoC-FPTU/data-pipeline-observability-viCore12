@@ -2,21 +2,14 @@
 ==============================================================
 Day 10 Lab: Build Your First Automated ETL Pipeline
 ==============================================================
-Student ID: AI20K-XXXX  (<-- Thay XXXX bang ma so cua ban)
-Name: Your Name Here
+Student ID: 2A202600120
+Name: Luu Luong Vi Nhan
 
 Nhiem vu:
    1. Extract:   Doc du lieu tu file JSON
    2. Validate:  Kiem tra & loai bo du lieu khong hop le
    3. Transform: Chuan hoa category + tinh gia giam 10%
    4. Load:      Luu ket qua ra file CSV
-
-Cham diem tu dong:
-   - Script phai chay KHONG LOI (20d)
-   - Validation: loai record gia <= 0, category rong (10d)
-   - Transform: discounted_price + category Title Case (10d)
-   - Logging: in so record processed/dropped (10d)
-   - Timestamp: them cot processed_at (10d)
 ==============================================================
 """
 
@@ -31,81 +24,74 @@ OUTPUT_FILE = 'processed_data.csv'
 
 
 def extract(file_path):
-    """
-    Task 1: Doc du lieu JSON tu file.
-
-    Goi y:
-       - Dung json.load() de doc file JSON
-       - Xu ly truong hop file khong ton tai (FileNotFoundError)
-
-    Returns:
-        list: Danh sach cac records (dictionaries)
-    """
+    """Doc du lieu JSON tu file."""
     print(f"Extracting data from {file_path}...")
-    # TODO: Viet code doc file JSON o day
-    # Vi du:
-    #   with open(file_path, 'r') as f:
-    #       data = json.load(f)
-    #   return data
-    pass
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        print(f"Extract complete. {len(data)} records loaded from source.")
+        return data
+    except FileNotFoundError:
+        print(f"ERROR: File {file_path} not found.")
+        return None
+    except json.JSONDecodeError as e:
+        print(f"ERROR: Invalid JSON in {file_path}: {e}")
+        return None
 
 
 def validate(data):
-    """
-    Task 2: Kiem tra chat luong du lieu.
-
-    Quy tac validation:
-       - Price phai > 0 (loai bo gia am hoac bang 0)
-       - Category khong duoc rong
-
-    Goi y:
-       - Dung record.get('price', 0) de lay gia
-       - Dung record.get('category') de kiem tra category
-       - In ra so luong record hop le va khong hop le
-
-    Returns:
-        list: Danh sach cac records hop le
-    """
+    """Kiem tra chat luong du lieu: price > 0 va category khong rong."""
     valid_records = []
     error_count = 0
 
-    # TODO: Lap qua data, kiem tra tung record
-    # Giu lai record hop le, dem record loi
+    for record in data:
+        price = record.get('price', 0)
+        category = record.get('category')
 
-    print(f"Validation complete. Valid: {len(valid_records)}, Errors: {error_count}")
+        try:
+            price_num = float(price)
+        except (TypeError, ValueError):
+            error_count += 1
+            print(f"  - Dropped invalid record (bad price type): {record}")
+            continue
+
+        if price_num <= 0:
+            error_count += 1
+            print(f"  - Dropped invalid record (price <= 0): {record}")
+            continue
+
+        if category is None or str(category).strip() == '':
+            error_count += 1
+            print(f"  - Dropped invalid record (empty category): {record}")
+            continue
+
+        valid_records.append(record)
+
+    print(
+        f"Validation summary: {len(valid_records)} kept, "
+        f"{error_count} dropped, {error_count} invalid."
+    )
     return valid_records
 
 
 def transform(data):
-    """
-    Task 3: Ap dung business logic.
+    """Ap dung business logic: discount 10%, Title Case category, timestamp."""
+    if not data:
+        print("Transform: no data to transform.")
+        return None
 
-    Yeu cau:
-       - Tinh discounted_price = price * 0.9 (giam 10%)
-       - Chuan hoa category thanh Title Case (vi du: "electronics" -> "Electronics")
-       - Them cot processed_at = timestamp hien tai
+    df = pd.DataFrame(data)
+    df['discounted_price'] = df['price'] * 0.9
+    df['category'] = df['category'].astype(str).str.title()
+    df['processed_at'] = datetime.datetime.now().isoformat()
 
-    Goi y:
-       - Dung pd.DataFrame(data) de tao DataFrame
-       - df['discounted_price'] = df['price'] * 0.9
-       - df['category'] = df['category'].str.title()
-       - df['processed_at'] = datetime.datetime.now().isoformat()
-
-    Returns:
-        pd.DataFrame: DataFrame da duoc transform
-    """
-    # TODO: Tao DataFrame va ap dung transformations
-    pass
+    print(f"Transform complete. {len(df)} records processed successfully.")
+    return df
 
 
 def load(df, output_path):
-    """
-    Task 4: Luu DataFrame ra file CSV.
-
-    Goi y:
-       - df.to_csv(output_path, index=False)
-    """
-    # TODO: Luu DataFrame ra CSV
+    """Luu DataFrame ra file CSV."""
+    df.to_csv(output_path, index=False)
     print(f"Data saved to {output_path}")
 
 
